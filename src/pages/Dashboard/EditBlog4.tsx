@@ -21,9 +21,9 @@ interface BlogResponse {
 const EditBlog = () => {
   const [title, setTitle] = useState("");
   const [synopsis, setSynopsis] = useState("");
-  const [blogcontent, setContent] = useState("");
+  const [content, setContent] = useState("");
   const [featuredImageUrl, setFeaturedImageUrl] = useState("");
-  const [editorLoaded, setEditorLoaded] = useState(false);
+  //const [editorLoaded, setEditorLoaded] = useState(false);
 
 
   const navigate = useNavigate();
@@ -84,7 +84,7 @@ const EditBlog = () => {
     e.preventDefault();
 
     // Validate fields
-    if (!title.trim() || !synopsis.trim() || !blogcontent.trim()) {
+    if (!title.trim() || !synopsis.trim() || !content.trim()) {
       toastUtils.auth.validationError(
         "Please fill in all required fields"
       );
@@ -94,7 +94,7 @@ const EditBlog = () => {
     editBlogMutation.mutate({
       title: title.trim(),
       synopsis: synopsis.trim(),
-      content: blogcontent.trim(),
+      content: content.trim(),
       featuredImageUrl: featuredImageUrl.trim(),
     });
   };
@@ -248,18 +248,18 @@ const handleContentChange = (val: string) => {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="content">Content *</Label>
-                  {blogcontent && (
+                  {content && (
                 <>
                    <SummernoteEditor
-                  value={blogcontent}
-                  onChange={(val: string) => setContent(val)}
+                  value={content}
+                  onChange={(val: string) => setContent (val)}
                   
                  
                 /> 
-                <textarea value={blogcontent} onChange={handleContentChange} />
+           
                 </>
               )}
-        
+             <textarea value={content} onChange={(e) => setContent(e.target.value)} />
 
 
               </div>

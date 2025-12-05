@@ -1,128 +1,182 @@
 import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from "../../components/ui/table";
 import DashboardLayout from "./Dashlayout";
 import { Button } from "../../components/ui/button";
+import { RotateCcw, Trash2 } from "lucide-react";
 import { useState } from "react";
 import MainLoader from "../../components/common/MainLoader";
 import api from "../../lib/api";
-import {useQuery, useQueryClient } from "@tanstack/react-query";
-import type { BlogData } from "../../types/blogTypes";
-import { useNavigate } from "react-router-dom";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toastUtils } from "../../lib/toast";
 
-const statusStyles: Record<string, string> = {
-  Published: "bg-green-100 text-green-800 dark:bg-green-500/15 dark:text-green-200",
-  Draft: "bg-amber-100 text-amber-800 dark:bg-amber-500/15 dark:text-amber-200"
+interface Blog {
+  id: number;
+  title: string;
+  deletedAt: string;
+  author: {
+    firstName: string;
+    lastName: string;
+  };
+}
+
+const formatDate = (dateString: string) => {
+  if (!dateString) return 'N/A';
+  const date = new Date(dateString);
+  return new Intl.DateTimeFormat('en-US', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  }).format(date);
 };
 
 const BlogTrash = () => {
-  const [isLoading, setIsLoading] = useState(false);
-  const [publishingId, setPublishingId] = useState<string | null>(null);
-
-  const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const [isProcessing, setIsProcessing] = useState<number | null>(null);
 
-
-
-  const { data: blogs, isLoading: blogsLoading, isError, error } = useQuery({
-    queryKey: ["get-trash"],
+  const { data: trashedBlogs = [], isLoading, isError, error } = useQuery<Blog[]>({
+    queryKey: ["trashed-blogs"],
     queryFn: async () => {
       const response = await api.get("/blogs/trash");
       return response.data.blogs;
-    }
+    },
   });
 
-   const handlePublish = async (draftId: string) => {
+  const handleRestore = async (blogId: number) => {
     try {
-      setPublishingId(draftId);
-      const res = await api.patch(`/blogs/unpublish/${draftId}`);
-      if (res.status === 200) {
-        toastUtils.blog.deleteSuccess("Blog unpublished successfully!");
-        queryClient.invalidateQueries({ queryKey: ["get-trash"] });
-        return navigate("/dashboard/blogs/trash");
-      }
-    } catch (err: any) {
-      console.error("Error unpublishing blog:", err);
-      toastUtils.blog.operationFailed("Unpublishing blog", err?.response?.data?.message || "Failed to unpublish blog", () => handlePublish(draftId));
+      setIsProcessing(blogId);
+      await api.patch(`/blogs/restore/${blogId}`);
+      await queryClient.invalidateQueries({ queryKey: ["trashed-blogs"] });
+      toastUtils.success("Blog restored successfully");
+    } catch (error) {
+      console.error("Error restoring blog:", error);
+      toastUtils.error("Failed to restore blog. Please try again.");
     } finally {
-      setPublishingId(null);
+      setIsProcessing(null);
     }
   };
 
-  if (blogsLoading) return <MainLoader />;
-  if (isError) return <h1>{error.message}</h1>;
+  const handleDelete = async (blogId: number) => {
+    if (!window.confirm("Are you sure you want to permanently delete this blog? This action cannot be undone.")) {
+      return;
+    }
 
+    try {
+      setIsProcessing(blogId);
+      await api.delete(`/blogs/${blogId}`);
+      await queryClient.invalidateQueries({ queryKey: ["trashed-blogs"] });
+      toastUtils.success("Blog permanently deleted");
+    } catch (error) {
+      console.error("Error deleting blog:", error);
+      toastUtils.error("Failed to delete blog. Please try again.");
+    } finally {
+      setIsProcessing(null);
+    }
+  };
+
+
+  if (isLoading) {
+    return (
+      <DashboardLayout title="Trash" subtitle="Loading...">
+        <div className="flex items-center justify-center h-64">
+          <MainLoader />
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  if (isError) {
+    return (
+      <DashboardLayout title="Error" subtitle="Failed to load trashed blogs">
+        <div className="text-center py-12">
+          <p className="text-destructive">Error: {error?.message || "Failed to load trashed blogs"}</p>
+          <Button 
+            variant="outline" 
+            className="mt-4"
+            onClick={() => queryClient.refetchQueries({ queryKey: ["trashed-blogs"] })}
+          >
+            Retry
+          </Button>
+        </div>
+      </DashboardLayout>
+    );
+  }
 
   return (
-    <DashboardLayout title="Blog Trash">
+    <DashboardLayout
+      title="Trash"
+      subtitle="Deleted blogs remain here temporarily. Restore or permanently delete them."
+    >
       <div className="rounded-2xl border border-border/70 bg-card shadow-sm">
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/60 px-6 py-4">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              Latest updates
-            </p>
-          </div>
-        </div>
-
         <Table>
-          <TableCaption>Author blogs</TableCaption>
+          <TableCaption>Restore items before permanent deletion</TableCaption>
           <TableHeader>
             <TableRow>
               <TableHead className="pl-6">Title</TableHead>
-              <TableHead>Status</TableHead>
+              <TableHead>Deleted At</TableHead>
               <TableHead>Author</TableHead>
-              <TableHead>Created</TableHead>
               <TableHead className="text-right pr-6">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {!blogs || blogs.length === 0 ? (
+            {trashedBlogs.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={5} className="h-24 text-center text-muted-foreground">
-                  {blogsLoading ? "Loading blogs..." : "No blogs found."}
+                <TableCell colSpan={4} className="h-32 text-center text-muted-foreground">
+                  No deleted blogs found
                 </TableCell>
               </TableRow>
             ) : (
-              blogs.map((blog: BlogData) => (
-                <TableRow key={blog.id}>
-                  <TableCell className="pl-6">
-                    <p className="font-semibold">{blog.title}</p>
-                    <p className="text-xs text-muted-foreground">Updated recently</p>
-                  </TableCell>
+              trashedBlogs.map((blog) => {
+                const isProcessingBlog = isProcessing === blog.id;
+                return (
+                  <TableRow key={blog.id}>
+                    <TableCell className="pl-6 font-medium">{blog.title}</TableCell>
+                    <TableCell>{formatDate(blog.deletedAt)}</TableCell>
+                    <TableCell>
+                      {blog.author ? `${blog.author.firstName} ${blog.author.lastName}` : 'Unknown'}
+                    </TableCell>
+                    <TableCell className="text-right pr-6">
+                      <div className="flex justify-end gap-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleRestore(blog.id)}
+                          // disabled={!!isProcessing && !isProcessingBlog}
+                          disabled={isProcessingBlog}
 
-                  <TableCell>
-                    <span className={
-                      "rounded-full px-3 py-1 text-xs font-semibold " +
-                      statusStyles[blog.isPublished ? "Published" : "Draft"]
-                    }>
-                      {blog.isPublished ? "Published" : "Draft"}
-                    </span>
-                  </TableCell>
-
-                  <TableCell>{blog.author.firstName}</TableCell>
-                  <TableCell>{blog.createdAt}</TableCell>
-
-                  <TableCell className="text-right pr-6">
-                    <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => handlePublish(blog.id)}
-                        disabled={publishingId === blog.id}
-                      >
-                        {publishingId === blog.id ? "Un Publishing..." : "UnPublish"}
-                      </Button>
-                  </TableCell>
-                </TableRow>
-              ))
+                          className="gap-1.5"
+                        >
+                          {isProcessingBlog ? (
+                            <MainLoader />
+                          ) : (
+                            <RotateCcw className="h-4 w-4" />
+                          )}
+                          Restore
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          onClick={() => handleDelete(blog.id)}
+                          // disabled={!!isProcessing && !isProcessingBlog}
+                          disabled={isProcessingBlog}
+                          className="gap-1.5"
+                        >
+                          {isProcessingBlog ? (
+                            <MainLoader  />
+                          ) : (
+                            <Trash2 className="h-4 w-4" />
+                          )}
+                          Delete
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                );
+              })
             )}
           </TableBody>
         </Table>
       </div>
-
-      {isLoading && (
-        <div className="fixed inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center z-50">
-          <MainLoader />
-        </div>
-      )}
     </DashboardLayout>
   );
 };
