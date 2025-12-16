@@ -114,9 +114,24 @@ export const toastUtils = {
         description: "Your post is now live",
       }),
 
+    unpublishSuccess: (title = "Unpublished successfully!") =>
+      toast.info(title, {
+        description: "Your post has been moved to drafts",
+      }),
+
     draftSaved: (title = "Draft saved!") =>
-      toast.success(title, {
+      toast.info(title, {
         description: "Your work has been saved as a draft",
+      }),
+
+    commentPosted: (title = "Comment posted!") =>
+      toast.success(title, {
+        description: "Your comment is now visible",
+      }),
+
+    commentDeleted: (title = "Comment deleted!") =>
+      toast.warning(title, {
+        description: "The comment has been removed",
       }),
 
     operationFailed: (
@@ -129,6 +144,27 @@ export const toastUtils = {
           error || `Something went wrong while performing ${operation}`,
         ...(retryCallback && {
           action: { label: "Retry", onClick: retryCallback },
+        }),
+      }),
+
+    validationError: (field: string, error?: string) =>
+      toast.error(`${field} validation error`, {
+        description: error || `Please check the ${field} field`,
+      }),
+
+    networkError: (retryCallback?: ActionCallback) =>
+      toast.error("Network error", {
+        description: "Unable to connect to the server",
+        ...(retryCallback && {
+          action: { label: "Retry", onClick: retryCallback },
+        }),
+      }),
+
+    unauthorized: (loginCallback?: ActionCallback) =>
+      toast.error("Unauthorized", {
+        description: "Please login to access this feature",
+        ...(loginCallback && {
+          action: { label: "Login", onClick: loginCallback },
         }),
       }),
   },

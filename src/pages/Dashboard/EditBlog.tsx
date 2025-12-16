@@ -4,133 +4,63 @@ import { Textarea } from "../../components/ui/textarea";
 import { Button } from "../../components/ui/button";
 import { Label } from "../../components/ui/label";
 import SummernoteEditor from "../../components/summerNoteEditor";
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect } from "react";
 import MainLoader from "../../components/common/MainLoader";
-import { useParams, useNavigate } from "react-router-dom";
-import { useQuery, useMutation } from "@tanstack/react-query";
-import type { BlogData } from "../../types/blogTypes";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import api from "../../lib/api";
 import { toastUtils } from "../../lib/toast";
-import useBlogStore from "../../Store/blogStore";
-
-interface BlogResponse {
-  status: string;
-  message: string;
-  blogs: BlogData;
-}
+import { type BlogData } from "../../types/blogTypes";
+import { useNavigate, useParams } from "react-router-dom";
+import { FileText, Save, ArrowLeft, Eye, RefreshCw, Image } from "lucide-react";
 
 const EditBlog = () => {
-  const [title, setTitle] = useState("");
-  const [synopsis, setSynopsis] = useState("");
-  const [content, setContent] = useState("");
-  const [featuredImageUrl, setFeaturedImageUrl] = useState("");
-  const [editorKey, setEditorKey] = useState(0);
-  const [isUsingStoreData, setIsUsingStoreData] = useState(false);
-
+  const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { id: blogId } = useParams();
-  
-  // Get Zustand store
-  const { blogForm, currentBlogId, resetBlogForm } = useBlogStore();
+  const [title, setTitle] = useState<string>("");
+  const [synopsis, setSynopsis] = useState<string>("");
+  const [content, setContent] = useState<string>("");
+  const [featuredImageUrl, setFeaturedImageUrl] = useState<string>("");
+  const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
 
-  // Debug: Log current store state
-  console.log(" Current Zustand store:", {
-    storeBlogId: blogForm.id,
-    currentBlogId,
-    storeTitle: blogForm.title,
-    storeContentLength: blogForm.content?.length,
-    urlBlogId: blogId
-  });
-
-  // Check if we have pre-filled data from Zustand
-  const hasPrefilledData = useMemo(() => {
-    if (!blogId || !blogForm.id) {
-      console.log(" No prefilled data: missing blogId or store id");
-      return false;
-    }
-    
-    const idsMatch = blogForm.id === blogId;
-    const hasContent = blogForm.content && blogForm.content.length > 0;
-    
-    console.log("🔍 Checking prefilled data:", {
-      blogId,
-      storeId: blogForm.id,
-      idsMatch,
-      storeContentLength: blogForm.content?.length,
-      hasContent,
-      result: idsMatch && hasContent
-    });
-    
-    return idsMatch && hasContent;
-  }, [blogId, blogForm.id, blogForm.content]);
-
-  // Fetch blog data only if we don't have it in Zustand
-  const blogData = useQuery({
-    queryKey: ["get-blog-edit", blogId],
+  // Fetch existing blog data
+  const { data: blog, isLoading, isError } = useQuery<BlogData>({
+    queryKey: ["get-blog", id],
     queryFn: async () => {
-      console.log("📡 Fetching blog from API for id:", blogId);
-      const response = await api.get<BlogResponse>(`/blogs/${blogId}`);
-      const data = response?.data?.blogs ?? null;
-      console.log("📦 API response:", {
-        hasData: !!data,
-        title: data?.title,
-        contentLength: data?.content?.length,
-        contentPreview: data?.content?.substring(0, 100) + "..."
-      });
-      return data;
+      if (!id) throw new Error("Blog ID is required");
+      const response = await api.get(`/blogs/${id}`);
+      // Handle different response structures
+      const blogData = response.data.blogs || response.data.blog || response.data.data || response.data;
+      return blogData;
     },
-    enabled: !!blogId && !hasPrefilledData, // Only fetch if no pre-filled data
+    enabled: !!id,
   });
 
-  // Populate state with data - Priority: Zustand store > API data
+  // Populate form with existing data
   useEffect(() => {
-    if (!blogId) return;
-    
-    console.log("EditBlog useEffect triggered", {
-      blogId,
-      hasPrefilledData,
-      apiDataReady: blogData.isSuccess,
-      isUsingStoreData
-    });
-
-    // Priority 1: Use Zustand store data if available
-    if (hasPrefilledData && blogForm.content) {
-      console.log("USING ZUSTAND STORE DATA");
-      console.log("Store content (first 200 chars):", blogForm.content.substring(0, 200) + "...");
-      setIsUsingStoreData(true);
-      setTitle(blogForm.title || "");
-      setSynopsis(blogForm.synopsis || "");
-      setContent(blogForm.content || "");
-      setFeaturedImageUrl(blogForm.featuredImageUrl || "");
-      setEditorKey(prev => prev + 1);
-      return;
-    }
-
-    // Priority 2: Use fetched API data
-    if (blogData.isSuccess && blogData.data) {
-      console.log("USING API FETCHED DATA");
-      const blog = blogData.data;
-      console.log("API content (first 200 chars):", blog.content?.substring(0, 200) + "...");
-      setIsUsingStoreData(false);
+    if (blog) {
       setTitle(blog.title || "");
       setSynopsis(blog.synopsis || "");
-      setContent(blog.content || "");
       setFeaturedImageUrl(blog.featuredImageUrl || "");
-      setEditorKey(prev => prev + 1);
+      
+      // Delay setting content to ensure Summernote is initialized
+      setTimeout(() => {
+        setContent(blog.content || "");
+      }, 100);
     }
-  }, [blogForm, blogData.isSuccess, blogData.data, hasPrefilledData, blogId]);
+  }, [blog]);
 
-  // Edit blog mutation
-  const editBlogMutation = useMutation<any, any, Partial<BlogData>>({
-    mutationKey: ["edit-blog-draft", blogId],
+  const updateBlogMutation = useMutation<any, any, Partial<BlogData>>({
+    mutationKey: ["update-blog", id],
     mutationFn: async (payload: Partial<BlogData>) => {
-      const res = await api.patch(`/blogs/${blogId}`, payload);
+      if (!id) throw new Error("Blog ID is required");
+      console.log("Updating blog:", payload);
+      const res = await api.patch(`/blogs/${id}`, payload);
+      console.log("Blog update response:", res.data);
       return res.data;
     },
     onSuccess: () => {
-      toastUtils.blog.updateSuccess("Blog post updated successfully!");
-      resetBlogForm(); // Clear Zustand store after successful update
-      navigate("/dashboard/blogs/drafts");
+      toastUtils.blog.updateSuccess("Blog updated successfully!");
+      navigate(`/dashboard/blogs/drafts`);
     },
     onError: (error: any) => {
       const serverMessage = error?.response?.data;
@@ -139,31 +69,22 @@ const EditBlog = () => {
         serverMessage?.error ||
         serverMessage?.errors?.[0]?.message ||
         error?.message;
-      toastUtils.blog.operationFailed(
-        "Editing blog",
-        derivedMessage || "Failed to update blog"
-      );
+      toastUtils.blog.operationFailed("Updating blog", derivedMessage, () => console.log("Retry blog update"));
     },
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
-    // Validate fields
-    if (!title.trim()) {
-      toastUtils.auth.validationError("Title is required");
-      return;
-    }
     
-    if (!content.trim()) {
-      toastUtils.auth.validationError("Content is required");
+    if (!title || !synopsis || !content) {
+      toastUtils.auth.validationError("Please fill in all required fields");
       return;
     }
 
     const payload: Partial<BlogData> = {
-      title: title.trim(),
-      synopsis: synopsis.trim(),
-      content: content.trim(),
+      title,
+      synopsis,
+      content,
     };
 
     // Only include featuredImageUrl if it's not empty
@@ -171,75 +92,64 @@ const EditBlog = () => {
       payload.featuredImageUrl = featuredImageUrl.trim();
     }
 
-    console.log("Submitting blog update:", {
-      ...payload,
-      contentLength: payload.content?.length
-    });
-    editBlogMutation.mutate(payload);
+    updateBlogMutation.mutate(payload);
   };
 
-  const handleContentChange = (val: string) => {
-    console.log("Content changed:", val.length, "characters");
-    setContent(val);
-  };
+  const handleSaveDraft = async () => {
+    if (!title || !synopsis || !content) {
+      toastUtils.auth.validationError("Please fill in all required fields");
+      return;
+    }
 
-  // Save as draft handler
-  const handleSaveDraft = () => {
     const payload: Partial<BlogData> = {
-      title: title.trim() || "Untitled Draft",
-      synopsis: synopsis.trim(),
-      content: content.trim(),
+      title,
+      synopsis,
+      content,
       isPublished: false,
     };
 
+    // Only include featuredImageUrl if it's not empty
     if (featuredImageUrl.trim()) {
       payload.featuredImageUrl = featuredImageUrl.trim();
     }
 
-    editBlogMutation.mutate(payload);
+    updateBlogMutation.mutate(payload);
   };
 
-  // Handle image URL error
-  const handleImageError = (e: React.SyntheticEvent<HTMLImageElement>) => {
-    const target = e.target as HTMLImageElement;
-    target.style.display = 'none';
-    toastUtils.blog.operationFailed("Image Load", "Failed to load image from URL");
-  };
-
-  // Show loading only when we're fetching from API and don't have store data
-  if (blogData.isLoading && !hasPrefilledData) {
+  // Show loading state while fetching blog
+  if (isLoading) {
     return (
-      <DashboardLayout title="Edit Blog" subtitle="Edit a blog post">
-        <div className="flex items-center justify-center min-h-[400px]">
-          <MainLoader />
+      <DashboardLayout title="Loading Blog" subtitle="Fetching your blog...">
+        <div className="flex justify-center items-center h-[60vh]">
+          <div className="text-center">
+            <MainLoader />
+            <p className="mt-4 text-gray-600">Loading blog details...</p>
+          </div>
         </div>
       </DashboardLayout>
     );
   }
 
-  if (blogData.isError && !hasPrefilledData) {
+  // Show error state if blog not found
+  if (isError || !blog) {
     return (
-      <DashboardLayout title="Edit Blog" subtitle="Edit a blog post">
+      <DashboardLayout title="Blog Not Found" subtitle="The blog you're looking for doesn't exist">
         <div className="text-center py-12">
-          <h3 className="text-lg font-semibold text-destructive">
-            Error loading blog
-          </h3>
-          <p className="text-muted-foreground mt-2">
-            {blogData.error?.message || "Failed to load blog data"}
+          <div className="inline-flex items-center justify-center w-16 h-16 bg-red-100 rounded-full mb-4">
+            <svg className="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+            </svg>
+          </div>
+          <h3 className="text-xl font-semibold text-gray-800 mb-3">Blog Not Found</h3>
+          <p className="text-gray-600 mb-8 max-w-md mx-auto">
+            The blog you're looking for doesn't exist or you don't have permission to edit it.
           </p>
           <Button 
-            variant="outline" 
-            className="mt-4"
-            onClick={() => blogData.refetch()}
+            onClick={() => navigate("/dashboard/blogs/draft")} 
+            className="bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white shadow-lg hover:shadow-xl transition-all duration-200"
           >
-            Try Again
-          </Button>
-          <Button 
-            variant="ghost" 
-            className="mt-4 ml-2"
-            onClick={() => navigate("/dashboard/blogs/drafts")}
-          >
-            Go Back to Drafts
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Back to Blogs
           </Button>
         </div>
       </DashboardLayout>
@@ -247,210 +157,256 @@ const EditBlog = () => {
   }
 
   return (
-    <DashboardLayout title="Edit Blog" subtitle="Edit a blog post">
-      <div className="grid gap-6 lg:grid-cols-[2fr,1fr]">
-        <div className="bg-card text-card-foreground rounded-2xl border border-border/60 shadow-sm">
+    <DashboardLayout title="Edit Blog" subtitle="Modify and update your existing blog">
+      <div className="grid gap-8 lg:grid-cols-[2fr,1fr]">
+        {/* Main Editor */}
+        <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-emerald-100/50 shadow-xl">
           {/* Header */}
-          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/50 px-6 py-4">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                Editor {isUsingStoreData ? "(From Store)" : "(From API)"}
-              </p>
-              <h2 className="text-lg font-semibold">Edit article</h2>
+          <div className="flex flex-wrap items-center justify-between gap-4 border-b border-emerald-100/50 px-8 py-6">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-gradient-to-r from-emerald-500 to-teal-500 rounded-xl flex items-center justify-center">
+                <FileText className="w-5 h-5 text-white" />
+              </div>
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-emerald-600">Editor</p>
+                <h2 className="text-lg font-semibold text-gray-800">Edit your blog</h2>
+              </div>
             </div>
 
-            <div className="flex gap-2">
+            <div className="flex gap-3">
               <Button 
-                type="button" 
                 variant="outline" 
-                size="sm"
-                onClick={() => navigate("/dashboard/blogs/drafts")}
-                disabled={editBlogMutation.isPending}
+                size="sm" 
+                onClick={() => navigate("/dashboard/blogs/draft")}
+                className="border-emerald-200 hover:bg-emerald-50"
               >
-                Cancel
+                <ArrowLeft className="w-4 h-4 mr-2" />
+                Back
               </Button>
               <Button 
-                type="button" 
-                variant="secondary" 
-                size="sm"
+                variant="outline"
+                size="sm" 
                 onClick={handleSaveDraft}
-                disabled={editBlogMutation.isPending || !content}
+                disabled={updateBlogMutation.isPending}
+                className="border-blue-200 hover:bg-blue-50 text-blue-600"
               >
-                Save as Draft
+                {updateBlogMutation.isPending ? (
+                  <span className="flex items-center gap-2">
+                    <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+                    Saving...
+                  </span>
+                ) : (
+                  <span className="flex items-center gap-2">
+                    <Save className="w-4 h-4" />
+                    Save Draft
+                  </span>
+                )}
               </Button>
-              <Button
-                size="sm"
-                className="gap-2"
-                type="submit"
-                form="edit-blog-form"
-                disabled={editBlogMutation.isPending || !content}
+              <Button 
+                size="sm" 
+                className="bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white shadow-lg hover:shadow-xl transition-all duration-200" 
+                type="submit" 
+                form="edit-blog-form" 
+                disabled={updateBlogMutation.isPending}
               >
-                {editBlogMutation.isPending ? "Updating..." : "Update & Publish"}
+                {updateBlogMutation.isPending ? (
+                  <span className="flex items-center gap-2">
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    Updating...
+                  </span>
+                ) : (
+                  <span className="flex items-center gap-2">
+                    <Save className="w-4 h-4" />
+                    Update & Publish
+                  </span>
+                )}
               </Button>
             </div>
           </div>
 
           {/* Form body */}
-          <form
-            id="edit-blog-form"
-            onSubmit={handleSubmit}
-            className="space-y-6 px-6 py-6"
-          >
+          <form id="edit-blog-form" onSubmit={handleSubmit} className="space-y-8 px-8 py-8">
             <div className="space-y-6">
+              
               {/* Title */}
-              <div className="space-y-2">
-                <Label htmlFor="title">Title *</Label>
+              <div className="space-y-3">
+                <Label htmlFor="title" className="text-sm font-medium text-gray-700 flex items-center gap-2">
+                  <FileText className="w-4 h-4 text-emerald-500" />
+                  Title
+                </Label>
                 <Input
                   id="title"
-                  placeholder="e.g. Building a StoryBook CMS"
+                  placeholder="e.g. Building a React Blog Platform"
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
-                  required
-                  disabled={editBlogMutation.isPending}
+                  className="border-emerald-200 focus:border-emerald-500 focus:ring-emerald-500 text-lg"
                 />
-                <p className="text-xs text-muted-foreground">
-                  Keep it concise and keyword rich.
-                </p>
+                <p className="text-xs text-gray-500">Keep it concise and keyword rich for better discoverability.</p>
               </div>
 
               {/* Synopsis */}
-              <div className="space-y-2">
-                <Label htmlFor="synopsis">Synopsis</Label>
+              <div className="space-y-3">
+                <Label htmlFor="synopsis" className="text-sm font-medium text-gray-700 flex items-center gap-2">
+                  <Eye className="w-4 h-4 text-emerald-500" />
+                  Synopsis
+                </Label>
                 <Textarea
                   id="synopsis"
-                  placeholder="Short description that appears on cards"
+                  placeholder="Short description that appears on blog cards (max 200 characters)"
                   value={synopsis}
                   onChange={(e) => setSynopsis(e.target.value)}
+                  className="border-emerald-200 focus:border-emerald-500 focus:ring-emerald-500 resize-none"
                   rows={3}
-                  disabled={editBlogMutation.isPending}
                 />
-                <p className="text-xs text-muted-foreground">
-                  Optional: A brief summary of your article.
+                <p className="text-xs text-gray-500">
+                  {synopsis.length}/200 characters - This appears in blog previews
                 </p>
               </div>
 
               {/* Featured Image */}
-              <div className="space-y-2">
-                <Label htmlFor="featuredImageUrl">Featured Image URL</Label>
-                <div className="flex flex-col gap-4">
-                  {featuredImageUrl && (
-                    <div className="relative inline-block">
-                      <img 
-                        src={featuredImageUrl} 
-                        alt="Featured image preview" 
-                        className="h-48 w-auto max-w-full object-contain rounded-lg border border-border/60 bg-muted/20"
-                        onError={handleImageError}
-                      />
-                      <Button
-                        type="button"
-                        variant="destructive"
-                        size="sm"
-                        className="absolute top-2 right-2"
-                        onClick={() => setFeaturedImageUrl("")}
-                        disabled={editBlogMutation.isPending}
-                      >
-                        Remove
-                      </Button>
-                    </div>
-                  )}
-                  <Input
-                    id="featuredImageUrl"
-                    type="url"
-                    placeholder="https://example.com/image.jpg"
-                    value={featuredImageUrl}
-                    onChange={(e) => setFeaturedImageUrl(e.target.value)}
-                    disabled={editBlogMutation.isPending}
-                  />
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  Optional: Enter a URL for the featured image.
-                </p>
+              <div className="space-y-3">
+                <Label htmlFor="featuredImageUrl" className="text-sm font-medium text-gray-700 flex items-center gap-2">
+                  <Image className="w-4 h-4 text-emerald-500" />
+                  Featured Image URL
+                </Label>
+                <Input
+                  id="featuredImageUrl"
+                  placeholder="https://example.com/image.jpg (optional)"
+                  value={featuredImageUrl}
+                  onChange={(e) => setFeaturedImageUrl(e.target.value)}
+                  className="border-emerald-200 focus:border-emerald-500 focus:ring-emerald-500"
+                />
+                {featuredImageUrl && (
+                  <div className="mt-2">
+                    <img 
+                      src={featuredImageUrl} 
+                      alt="Featured image preview" 
+                      className="w-full h-48 object-cover rounded-lg border border-emerald-200"
+                      onError={(e) => {
+                        e.currentTarget.src = "";
+                        e.currentTarget.style.display = "none";
+                      }}
+                    />
+                  </div>
+                )}
+                <p className="text-xs text-gray-500">Optional: Add a featured image for your blog post</p>
               </div>
 
-              {/* Content Editor */}
-              <div className="space-y-2">
-                <Label htmlFor="content">Content *</Label>
-                <div className="border border-border/50 rounded-lg overflow-hidden">
-                  {/* Show SummernoteEditor when content is available */}
-                  {content !== undefined ? (
-                    <SummernoteEditor
-                      key={`${editorKey}-${content?.length || 0}`} // Force re-render when content changes
-                      value={content}
-                      onChange={handleContentChange}
-                      disabled={editBlogMutation.isPending}
-                      placeholder="Start writing your blog content here..."
-                    />
-                  ) : (
-                    <div className="min-h-[300px] flex items-center justify-center bg-muted/20">
-                      <MainLoader size="sm" />
-                    </div>
-                  )}
-                </div>
-                <div className="flex justify-between items-center">
-                  <p className="text-xs text-muted-foreground">
-                    Write your article content. HTML formatting is supported.
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    Characters: {content?.length || 0}
-                  </p>
+              {/* Content — Summernote */}
+              <div className="space-y-3">
+                <Label htmlFor="content" className="text-sm font-medium text-gray-700 flex items-center gap-2">
+                  <FileText className="w-4 h-4 text-emerald-500" />
+                  Content
+                </Label>
+                <div className={`border ${isFullscreen ? 'border-transparent' : 'border-emerald-200'} ${isFullscreen ? 'rounded-none' : 'rounded-lg'} overflow-hidden transition-all duration-200`}>
+                  <SummernoteEditor
+                    key={blog?.id || 'editor'}
+                    value={content}
+                    onChange={(val) => setContent(val)}
+                    onFullscreen={(fullscreen) => setIsFullscreen(fullscreen)}
+                    height={400}
+                    onInit={() => {
+                      // Ensure content is set after initialization
+                      if (blog?.content && content !== blog.content) {
+                        setContent(blog.content);
+                      }
+                    }}
+                  />
                 </div>
               </div>
+
             </div>
           </form>
         </div>
 
         {/* Sidebar */}
         <div className="space-y-6">
-          <div className="bg-card text-card-foreground rounded-2xl border border-border/60 shadow-sm p-6">
-            <h3 className="font-semibold mb-4">Debug Information</h3>
+          {/* Blog Info */}
+          <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-emerald-100/50 p-6 shadow-lg">
+            <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
+              <FileText className="w-5 h-5 text-emerald-500" />
+              Blog Information
+            </h3>
             <div className="space-y-3 text-sm">
               <div className="flex justify-between items-center">
-                <span className="text-muted-foreground">Data Source:</span>
-                <span className={`font-medium px-2 py-1 rounded-full ${
-                  isUsingStoreData 
-                    ? "bg-purple-100 text-purple-800"
-                    : "bg-blue-100 text-blue-800"
+                <span className="text-gray-600">Created</span>
+                <span className="text-gray-800">
+                  {blog?.dateCreated ? new Date(blog.dateCreated).toLocaleDateString() : 'Unknown'}
+                </span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-gray-600">Last Updated</span>
+                <span className="text-gray-800">
+                  {blog?.lastUpdated ? new Date(blog.lastUpdated).toLocaleDateString() : 'Unknown'}
+                </span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-gray-600">Status</span>
+                <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                  blog?.isPublished 
+                    ? 'bg-emerald-100 text-emerald-700' 
+                    : 'bg-gray-100 text-gray-700'
                 }`}>
-                  {isUsingStoreData ? "Zustand Store" : "API"}
+                  {blog?.isPublished ? 'Published' : 'Draft'}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Edit Tips */}
+          <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-emerald-100/50 p-6 shadow-lg">
+            <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
+              <RefreshCw className="w-5 h-5 text-emerald-500" />
+              Editing Tips
+            </h3>
+            <ul className="space-y-3 text-sm text-gray-600">
+              <li className="flex items-start gap-2">
+                <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full mt-2 flex-shrink-0"></div>
+                <span>Save frequently to avoid losing your changes</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full mt-2 flex-shrink-0"></div>
+                <span>Use the fullscreen mode for better focus</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full mt-2 flex-shrink-0"></div>
+                <span>Keep your synopsis under 200 characters</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full mt-2 flex-shrink-0"></div>
+                <span>Add a featured image to make your blog stand out</span>
+              </li>
+            </ul>
+          </div>
+
+          {/* Statistics */}
+          <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-emerald-100/50 p-6 shadow-lg">
+            <h3 className="text-lg font-semibold text-gray-800 mb-4">Blog Statistics</h3>
+            <div className="space-y-3">
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-gray-600">Title characters</span>
+                <span className="text-sm font-medium text-emerald-600">{title.length}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-gray-600">Synopsis characters</span>
+                <span className={`text-sm font-medium ${synopsis.length > 200 ? 'text-red-600' : 'text-emerald-600'}`}>
+                  {synopsis.length}/200
                 </span>
               </div>
               <div className="flex justify-between items-center">
-                <span className="text-muted-foreground">Content Length:</span>
-                <span className="font-medium">
-                  {content?.length || 0} chars
-                </span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-muted-foreground">Store ID:</span>
-                <code className="text-xs bg-muted px-2 py-1 rounded truncate max-w-[120px]">
-                  {blogForm.id || "(empty)"}
-                </code>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-muted-foreground">URL ID:</span>
-                <code className="text-xs bg-muted px-2 py-1 rounded truncate max-w-[120px]">
-                  {blogId}
-                </code>
-              </div>
-              <div className="pt-4 border-t border-border/50">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="w-full"
-                  onClick={() => navigate("/dashboard/blogs/drafts")}
-                  disabled={editBlogMutation.isPending}
-                >
-                  Back to Drafts
-                </Button>
+                <span className="text-sm text-gray-600">Content words</span>
+                <span className="text-sm font-medium text-emerald-600">{content.split(/\s+/).filter(word => word.length > 0).length}</span>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Loader overlay */}
-        {editBlogMutation.isPending && (
-          <div className="fixed inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center z-50">
-            <MainLoader />
+        {updateBlogMutation.isPending && (
+          <div className="fixed inset-0 bg-white/80 backdrop-blur-sm flex items-center justify-center z-50">
+            <div className="text-center">
+              <MainLoader />
+              <p className="mt-4 text-gray-600">Updating your blog...</p>
+            </div>
           </div>
         )}
       </div>

@@ -3,30 +3,25 @@ import DashboardLayout from "./Dashlayout";
 import { Button } from "../../components/ui/button";
 import { useState } from "react";
 import MainLoader from "../../components/common/MainLoader";
+import TableLoading from "../../components/ui/TableLoading";
 import api from "../../lib/api";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { BlogData } from "../../types/blogTypes";
 import { useNavigate } from "react-router-dom";
 import { toastUtils } from "../../lib/toast";
 import useBlogStore from "../../Store/blogStore";
-import { Edit, Trash2 } from "lucide-react";
+import { Edit, Trash2, Loader2 } from "lucide-react";
 
 const statusStyles: Record<string, string> = {
-  Published: "bg-green-100 text-green-800 dark:bg-green-500/15 dark:text-green-200",
-  Draft: "bg-amber-100 text-amber-800 dark:bg-amber-500/15 dark:text-amber-200"
-};
-
-// If you need a separate type for drafts, define it or use BlogData
-type BlogDraft = BlogData & {
-  // Add any draft-specific properties if needed
+  Published: "bg-green-100 text-green-800 border border-green-200",
+  Draft: "bg-amber-100 text-amber-800 border border-amber-200"
 };
 
 const BlogDrafts = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [publishingId, setPublishingId] = useState<string | null>(null);
-
-  // Get Zustand store actions
-  const { setCurrentBlogId, updateBlogForm } = useBlogStore();
+  const [isPublishing, setIsPublishing] = useState(false);
+  const [isTrashing, setIsTrashing] = useState<string | null>(null);
 
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -42,10 +37,13 @@ const BlogDrafts = () => {
   const handlePublish = async (draftId: string) => {
     try {
       setPublishingId(draftId);
+      setIsPublishing(true);
       const res = await api.patch(`/blogs/publish/${draftId}`);
       if (res.status === 200) {
-        toastUtils.blog.deleteSuccess("Blog published successfully!");
-        queryClient.invalidateQueries({ queryKey: ["get-drafts"] });
+        toastUtils.blog.publishSuccess();
+        // Invalidate and refetch to update table
+        await queryClient.invalidateQueries({ queryKey: ["get-drafts"] });
+        // Navigate after successful update
         return navigate("/dashboard/blogs/published");
       }
     } catch (err: any) {
@@ -53,6 +51,7 @@ const BlogDrafts = () => {
       toastUtils.blog.operationFailed("Publishing blog", err?.response?.data?.message || "Failed to publish blog", () => handlePublish(draftId));
     } finally {
       setPublishingId(null);
+      setIsPublishing(false);
     }
   };
 
@@ -111,9 +110,11 @@ const handleEdit = (blogData: BlogData) => {
   const handleTrash = async (blogId: string) => {
     try {
       setIsLoading(true);
+      setIsTrashing(blogId);
       await api.patch(`/blogs/trash/${blogId}`);
       toastUtils.blog.deleteSuccess("Blog moved to trash");
 
+      // Invalidate and refetch to update table
       await queryClient.invalidateQueries({ queryKey: ["get-drafts"] });
     } catch (err: any) {
       console.error("Error trashing blog:", err);
@@ -123,18 +124,28 @@ const handleEdit = (blogData: BlogData) => {
       );
     } finally {
       setIsLoading(false);
+      setIsTrashing(null);
     }
   };
 
   if (blogsLoading) return <MainLoader />;
   if (isError) return <h1>Error: {error.message}</h1>;
+  
+  // Show loading skeleton during operations
+  if (isPublishing || isTrashing) {
+    return (
+      <DashboardLayout title="Blog Drafts">
+        <TableLoading message={isPublishing ? "Publishing blog..." : "Moving to trash..."} rows={blogs?.length || 3} />
+      </DashboardLayout>
+    );
+  }
 
   return (
     <DashboardLayout title="Blog Drafts">
-      <div className="rounded-2xl border border-border/70 bg-card shadow-sm">
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/60 px-6 py-4">
+      <div className="rounded-xl border border-blue-100 bg-white shadow-sm">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-blue-100 px-6 py-4">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            <p className="text-xs font-semibold uppercase tracking-wide text-blue-600">
               Latest updates
             </p>
           </div>
@@ -162,8 +173,8 @@ const handleEdit = (blogData: BlogData) => {
               blogs.map((blog: BlogData) => (
                 <TableRow key={blog.id}>
                   <TableCell className="pl-6">
-                    <p className="font-semibold">{blog.title}</p>
-                    <p className="text-xs text-muted-foreground">Updated recently</p>
+                    <p className="font-semibold text-gray-900">{blog.title}</p>
+                    <p className="text-xs text-gray-600">Updated recently</p>
                   </TableCell>
 
                   <TableCell>
@@ -175,8 +186,8 @@ const handleEdit = (blogData: BlogData) => {
                     </span>
                   </TableCell>
 
-                  <TableCell>{blog.author?.firstName || "Unknown"}</TableCell>
-                  <TableCell>
+                  <TableCell className="text-gray-700">{blog.author?.firstName || "Unknown"}</TableCell>
+                  <TableCell className="text-gray-600">
                     {blog.createdAt ? new Date(blog.createdAt).toLocaleDateString() : "N/A"}
                   </TableCell>
 
@@ -186,15 +197,24 @@ const handleEdit = (blogData: BlogData) => {
                         size="sm"
                         variant="outline"
                         onClick={() => handlePublish(getBlogId(blog))}
-                        disabled={publishingId === blog.id}
+                        disabled={publishingId === blog.id || isPublishing}
+                        className="border-blue-200 text-blue-600 hover:bg-blue-50 hover:text-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
                       >
-                        {publishingId === blog.id ? "Publishing..." : "Publish"}
+                        {publishingId === blog.id ? (
+                          <>
+                            <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                            Publishing...
+                          </>
+                        ) : (
+                          "Publish"
+                        )}
                       </Button>
                       <Button 
                         size="icon-sm" 
                         variant="ghost" 
                         onClick={() => handleEdit(blog)} 
-                        disabled={isLoading}
+                        disabled={isLoading || isPublishing || !!isTrashing}
+                        className="text-gray-600 hover:text-blue-600 hover:bg-blue-50 disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         <Edit className="h-4 w-4" />
                       </Button>
@@ -202,9 +222,14 @@ const handleEdit = (blogData: BlogData) => {
                         size="icon-sm" 
                         variant="ghost" 
                         onClick={() => handleTrash(getBlogId(blog))} 
-                        disabled={isLoading}
+                        disabled={isLoading || isTrashing === getBlogId(blog) || isPublishing}
+                        className="text-gray-600 hover:text-red-600 hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed"
                       >
-                        <Trash2 className="h-4 w-4" />
+                        {isTrashing === getBlogId(blog) ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Trash2 className="h-4 w-4" />
+                        )}
                       </Button>
                     </div>
                   </TableCell>

@@ -5,28 +5,19 @@ import useUserStore from "../../Store/userStore";
 import api from "../../lib/api";
 import { useNavigate } from "react-router-dom";
 
-const stats = [
-  { label: "Published", value: "128", change: "+4 this week" },
-  { label: "Drafts", value: "18", change: "−3 awaiting review" },
-  { label: "Scheduled", value: "9", change: "Next post in 3h" },
-  { label: "Views (7d)", value: "58.2k", change: "+18% vs last week" },
-];
 
-const topPosts = [
-  { title: "Building a StoryBook CMS", metric: "8.4k views", trend: "+12%" },
-  { title: "UX Basics for Editors", metric: "5.9k views", trend: "+32%" },
-  { title: "Weekly newsletter #48", metric: "4.1k views", trend: "↔" },
-];
-
-const workflow = [
-  { stage: "Needs review", count: 3, description: "Waiting on editors" },
-  { stage: "Ready to publish", count: 2, description: "Scheduled this week" },
-  { stage: "Blocked", count: 1, description: "Missing assets" },
-];
 
 const DashboardHome = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState([
+    { label: "Published", value: "0", change: "Loading..." },
+    { label: "Drafts", value: "0", change: "Loading..." },
+    { label: "Trash", value: "0", change: "Loading..." },
+    { label: "Total Posts", value: "0", change: "Loading..." },
+  ]);
+  const [topPosts, setTopPosts] = useState<{ title: string; metric: string; trend: string }[]>([]);
+  const [workflow, setWorkflow] = useState<{ stage: string; count: number; description: string }[]>([]);
   const navigate = useNavigate();  
   const { emailAddress, setUser, clearUser } = useUserStore();
   const isLoggedIn = !!emailAddress;
@@ -43,7 +34,68 @@ const DashboardHome = () => {
       }
     };
     
+    const fetchDashboardData = async () => {
+      try {
+        // Fetch published blogs
+        const publishedRes = await api.get("/blogs/published");
+        const publishedBlogs = publishedRes.data.blogs || [];
+        
+        // Fetch draft blogs
+        const draftRes = await api.get("/blogs/draft");
+        const draftBlogs = draftRes.data.blogs || [];
+        
+        // Fetch trashed blogs
+        const trashRes = await api.get("/blogs/trash");
+        const trashedBlogs = trashRes.data.blogs || [];
+        
+        // Update stats with real data
+        setStats([
+          { 
+            label: "Published", 
+            value: publishedBlogs.length.toString(), 
+            change: publishedBlogs.length > 0 ? `+${Math.min(publishedBlogs.length, 4)} this week` : "No posts" 
+          },
+          { 
+            label: "Drafts", 
+            value: draftBlogs.length.toString(), 
+            change: draftBlogs.length > 0 ? `${draftBlogs.length} awaiting review` : "No drafts" 
+          },
+          { 
+            label: "Trash", 
+            value: trashedBlogs.length.toString(), 
+            change: trashedBlogs.length > 0 ? "Recently deleted" : "Empty" 
+          },
+          { 
+            label: "Total Posts", 
+            value: (publishedBlogs.length + draftBlogs.length).toString(), 
+            change: "All content" 
+          },
+        ]);
+        
+        // Update top posts with recent published blogs
+        const recentPosts = publishedBlogs
+          .slice(0, 3)
+          .map(blog => ({
+            title: blog.title,
+            metric: "Published",
+            trend: "+0%"
+          }));
+        setTopPosts(recentPosts);
+        
+        // Update workflow status based on drafts
+        setWorkflow([
+          { stage: "Drafts", count: draftBlogs.length, description: "Ready to edit" },
+          { stage: "Published", count: publishedBlogs.length, description: "Live content" },
+          { stage: "Trash", count: trashedBlogs.length, description: "Recently deleted" },
+        ]);
+        
+      } catch (error) {
+        console.error("Error fetching dashboard data:", error);
+      }
+    };
+    
     checkAuthStatus();
+    fetchDashboardData();
   }, [setUser, clearUser]);
 
   const handleRefresh = async () => {
@@ -78,58 +130,58 @@ const DashboardHome = () => {
     <DashboardLayout title="Content overview" subtitle="Track publishing KPIs, approvals, and team focus.">
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         {stats.map((stat) => (
-          <article key={stat.label} className="bg-card text-card-foreground rounded-2xl border border-border/60 p-5 shadow-sm">
-            <p className="text-sm text-muted-foreground">{stat.label}</p>
-            <p className="mt-2 text-3xl font-semibold">{stat.value}</p>
-            <p className="text-xs font-medium text-muted-foreground">{stat.change}</p>
+          <article key={stat.label} className="bg-white rounded-xl border border-blue-100 p-5 shadow-sm hover:shadow-md transition-shadow duration-200">
+            <p className="text-sm font-medium text-gray-600">{stat.label}</p>
+            <p className="mt-2 text-3xl font-bold text-gray-900">{stat.value}</p>
+            <p className="text-xs font-medium text-blue-600">{stat.change}</p>
           </article>
         ))}
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2 mt-6">
-        <section className="bg-card text-card-foreground rounded-2xl border border-border/60 p-6 shadow-sm">
+        <section className="bg-white rounded-xl border border-blue-100 p-6 shadow-sm">
           <div className="flex items-center justify-between">
             <div>
-              <h2 className="text-xl font-semibold">Top performing posts</h2>
-              <p className="text-sm text-muted-foreground">Based on the last 7 days</p>
+              <h2 className="text-xl font-bold text-gray-900">Top performing posts</h2>
+              <p className="text-sm text-gray-600">Based on the last 7 days</p>
             </div>
-            <span className="text-xs font-semibold text-emerald-500">+18% traffic</span>
+            <span className="text-xs font-semibold text-green-600 bg-green-50 px-2 py-1 rounded-full">+18% traffic</span>
           </div>
           <div className="mt-5 space-y-4">
             {topPosts.map((post) => (
-              <div key={post.title} className="flex items-center justify-between rounded-xl border border-border/60 px-4 py-3">
+              <div key={post.title} className="flex items-center justify-between rounded-xl border border-blue-100 px-4 py-3 hover:bg-blue-50 transition-colors duration-200">
                 <div>
-                  <p className="font-medium">{post.title}</p>
-                  <p className="text-xs text-muted-foreground">{post.metric}</p>
+                  <p className="font-medium text-gray-900">{post.title}</p>
+                  <p className="text-xs text-gray-600">{post.metric}</p>
                 </div>
-                <span className="text-xs font-semibold text-muted-foreground">{post.trend}</span>
+                <span className="text-xs font-semibold text-blue-600">{post.trend}</span>
               </div>
             ))}
           </div>
         </section>
 
-        <section className="bg-card text-card-foreground rounded-2xl border border-border/60 p-6 shadow-sm">
+        <section className="bg-white rounded-xl border border-blue-100 p-6 shadow-sm">
           <div className="flex items-center justify-between">
             <div>
-              <h2 className="text-xl font-semibold">Workflow status</h2>
-              <p className="text-sm text-muted-foreground">Stay ahead of blockers</p>
+              <h2 className="text-xl font-bold text-gray-900">Workflow status</h2>
+              <p className="text-sm text-gray-600">Stay ahead of blockers</p>
             </div>
             <button 
               onClick={handleRefresh}
               disabled={isLoading}
-              className="text-xs font-semibold text-primary hover:underline disabled:opacity-50"
+              className="text-xs font-semibold text-blue-600 hover:text-blue-700 hover:bg-blue-50 px-2 py-1 rounded transition-colors duration-200 disabled:opacity-50"
             >
               {isLoading ? "Refreshing..." : "Live sync"}
             </button>
           </div>
           <div className="mt-5 space-y-4">
             {workflow.map((bucket) => (
-              <div key={bucket.stage} className="flex items-center justify-between rounded-xl border border-border/60 px-4 py-3">
+              <div key={bucket.stage} className="flex items-center justify-between rounded-xl border border-blue-100 px-4 py-3 hover:bg-blue-50 transition-colors duration-200">
                 <div>
-                  <p className="font-semibold">{bucket.stage}</p>
-                  <p className="text-xs text-muted-foreground">{bucket.description}</p>
+                  <p className="font-semibold text-gray-900">{bucket.stage}</p>
+                  <p className="text-xs text-gray-600">{bucket.description}</p>
                 </div>
-                <span className="text-xl font-semibold">{bucket.count}</span>
+                <span className="text-xl font-bold text-blue-600">{bucket.count}</span>
               </div>
             ))}
           </div>
