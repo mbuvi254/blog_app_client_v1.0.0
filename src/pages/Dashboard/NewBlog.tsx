@@ -11,6 +11,7 @@ import api from "../../lib/api";
 import { toastUtils } from "../../lib/toast";
 import { type BlogData } from "../../types/blogTypes";
 import { useNavigate } from "react-router-dom";
+import { FileText, Image, Loader2, Send } from "lucide-react";
 
 const NewBlog = () => {
   const [title, setTitle] = useState<string>("");
@@ -68,17 +69,33 @@ const NewBlog = () => {
   return (
     <DashboardLayout title="New Blog" subtitle="Create a new blog post">
       <div className="grid gap-6 lg:grid-cols-[2fr,1fr]">
-        <div className="bg-card text-card-foreground rounded-2xl border border-border/60 shadow-sm">
+        <div className="bg-white border border-blue-100 rounded-xl shadow-sm">
           {/* Header */}
-          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/50 px-6 py-4">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-blue-100 px-6 py-4">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Editor</p>
-              <h2 className="text-lg font-semibold">Compose article</h2>
+              <p className="text-xs font-semibold uppercase tracking-wide text-blue-600">Editor</p>
+              <h2 className="text-lg font-bold text-gray-900">Compose article</h2>
             </div>
 
             <div className="flex gap-2">
-              <Button size="sm" className="gap-2" type="submit" form="new-blog-form" disabled={newBlogMutation.isPending}>
-                {newBlogMutation.isPending ? "Creating..." : "Create post"}
+              <Button 
+                size="sm" 
+                className="gap-2 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white shadow-lg hover:shadow-xl transition-all duration-200" 
+                type="submit" 
+                form="new-blog-form" 
+                disabled={newBlogMutation.isPending}
+              >
+                {newBlogMutation.isPending ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Creating...
+                  </>
+                ) : (
+                  <>
+                    <Send className="h-4 w-4" />
+                    Create post
+                  </>
+                )}
               </Button>
             </div>
           </div>
@@ -89,40 +106,49 @@ const NewBlog = () => {
               
               {/* Title */}
               <div className="space-y-2">
-                <Label htmlFor="title">Title</Label>
-                <Input
-                  id="title"
-                  placeholder="e.g. Building a StoryBook CMS"
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                />
-                <p className="text-xs text-muted-foreground">Keep it concise and keyword rich.</p>
+                <Label htmlFor="title" className="text-xs font-semibold uppercase tracking-wide text-blue-600">Title</Label>
+                <div className="relative">
+                  <FileText className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                  <Input
+                    id="title"
+                    placeholder="e.g. Building a StoryBook CMS"
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value)}
+                    className="pl-10 border-blue-200 focus:border-blue-500 focus:ring-blue-500"
+                  />
+                </div>
+                <p className="text-xs text-gray-600">Keep it concise and keyword rich.</p>
               </div>
 
               {/* Synopsis */}
               <div className="space-y-2">
-                <Label htmlFor="synopsis">Synopsis</Label>
+                <Label htmlFor="synopsis" className="text-xs font-semibold uppercase tracking-wide text-blue-600">Synopsis</Label>
                 <Textarea
                   id="synopsis"
                   placeholder="Short description that appears on cards"
                   value={synopsis}
                   onChange={(e) => setSynopsis(e.target.value)}
+                  className="border-blue-200 focus:border-blue-500 focus:ring-blue-500"
                 />
               </div>
 
                 <div className="space-y-2">
-                <Label htmlFor="featuredImageUrl">Featured Image URL</Label>
-                <Input
-                  id="featuredImageUrl"
-                  placeholder="https://example.com/image.jpg"
-                  value={featuredImageUrl}
-                  onChange={(e) => setFeaturedImageUrl(e.target.value)}
-                />
+                <Label htmlFor="featuredImageUrl" className="text-xs font-semibold uppercase tracking-wide text-blue-600">Featured Image URL</Label>
+                <div className="relative">
+                  <Image className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                  <Input
+                    id="featuredImageUrl"
+                    placeholder="https://example.com/image.jpg"
+                    value={featuredImageUrl}
+                    onChange={(e) => setFeaturedImageUrl(e.target.value)}
+                    className="pl-10 border-blue-200 focus:border-blue-500 focus:ring-blue-500"
+                  />
+                </div>
               </div>
 
               {/* Content — Summernote */}
               <div className="space-y-2">
-                <Label htmlFor="content">Content</Label>
+                <Label htmlFor="content" className="text-xs font-semibold uppercase tracking-wide text-blue-600">Content</Label>
                 <SummernoteEditor
                   value={content}
                   onChange={(val) => setContent(val)}
@@ -134,7 +160,7 @@ const NewBlog = () => {
         </div>
 
         {newBlogMutation.isPending && (
-          <div className="fixed inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center z-50">
+          <div className="fixed inset-0 bg-white/80 backdrop-blur-sm flex items-center justify-center z-50">
             <MainLoader />
           </div>
         )}

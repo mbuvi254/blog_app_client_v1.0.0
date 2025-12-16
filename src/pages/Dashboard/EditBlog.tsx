@@ -146,7 +146,7 @@ const EditBlog = () => {
           </p>
           <Button 
             onClick={() => navigate("/dashboard/blogs/draft")} 
-            className="bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white shadow-lg hover:shadow-xl transition-all duration-200"
+            className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white shadow-lg hover:shadow-xl transition-all duration-200"
           >
             <ArrowLeft className="w-4 h-4 mr-2" />
             Back to Blogs
@@ -160,16 +160,16 @@ const EditBlog = () => {
     <DashboardLayout title="Edit Blog" subtitle="Modify and update your existing blog">
       <div className="grid gap-8 lg:grid-cols-[2fr,1fr]">
         {/* Main Editor */}
-        <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-emerald-100/50 shadow-xl">
+        <div className="bg-white rounded-xl border border-blue-100 shadow-sm">
           {/* Header */}
-          <div className="flex flex-wrap items-center justify-between gap-4 border-b border-emerald-100/50 px-8 py-6">
+          <div className="flex flex-wrap items-center justify-between gap-4 border-b border-blue-100 px-8 py-6">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-gradient-to-r from-emerald-500 to-teal-500 rounded-xl flex items-center justify-center">
+              <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-blue-600 rounded-xl flex items-center justify-center">
                 <FileText className="w-5 h-5 text-white" />
               </div>
               <div>
-                <p className="text-xs font-semibold uppercase tracking-wide text-emerald-600">Editor</p>
-                <h2 className="text-lg font-semibold text-gray-800">Edit your blog</h2>
+                <p className="text-xs font-semibold uppercase tracking-wide text-blue-600">Editor</p>
+                <h2 className="text-lg font-bold text-gray-900">Edit your blog</h2>
               </div>
             </div>
 
@@ -177,8 +177,8 @@ const EditBlog = () => {
               <Button 
                 variant="outline" 
                 size="sm" 
-                onClick={() => navigate("/dashboard/blogs/draft")}
-                className="border-emerald-200 hover:bg-emerald-50"
+                onClick={() => navigate("/dashboard/blogs/drafts")}
+                className="border-blue-200 hover:bg-blue-50 text-blue-600"
               >
                 <ArrowLeft className="w-4 h-4 mr-2" />
                 Back
@@ -204,7 +204,7 @@ const EditBlog = () => {
               </Button>
               <Button 
                 size="sm" 
-                className="bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white shadow-lg hover:shadow-xl transition-all duration-200" 
+                className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white shadow-lg hover:shadow-xl transition-all duration-200" 
                 type="submit" 
                 form="edit-blog-form" 
                 disabled={updateBlogMutation.isPending}
@@ -230,8 +230,8 @@ const EditBlog = () => {
               
               {/* Title */}
               <div className="space-y-3">
-                <Label htmlFor="title" className="text-sm font-medium text-gray-700 flex items-center gap-2">
-                  <FileText className="w-4 h-4 text-emerald-500" />
+                <Label htmlFor="title" className="text-xs font-semibold uppercase tracking-wide text-blue-600 flex items-center gap-2">
+                  <FileText className="w-4 h-4 text-blue-500" />
                   Title
                 </Label>
                 <Input
@@ -239,15 +239,15 @@ const EditBlog = () => {
                   placeholder="e.g. Building a React Blog Platform"
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
-                  className="border-emerald-200 focus:border-emerald-500 focus:ring-emerald-500 text-lg"
+                  className="border-blue-200 focus:border-blue-500 focus:ring-blue-500 text-lg"
                 />
-                <p className="text-xs text-gray-500">Keep it concise and keyword rich for better discoverability.</p>
+                <p className="text-xs text-gray-600">Keep it concise and keyword rich for better discoverability.</p>
               </div>
 
               {/* Synopsis */}
               <div className="space-y-3">
-                <Label htmlFor="synopsis" className="text-sm font-medium text-gray-700 flex items-center gap-2">
-                  <Eye className="w-4 h-4 text-emerald-500" />
+                <Label htmlFor="synopsis" className="text-xs font-semibold uppercase tracking-wide text-blue-600 flex items-center gap-2">
+                  <Eye className="w-4 h-4 text-blue-500" />
                   Synopsis
                 </Label>
                 <Textarea
@@ -255,7 +255,7 @@ const EditBlog = () => {
                   placeholder="Short description that appears on blog cards (max 200 characters)"
                   value={synopsis}
                   onChange={(e) => setSynopsis(e.target.value)}
-                  className="border-emerald-200 focus:border-emerald-500 focus:ring-emerald-500 resize-none"
+                  className="border-blue-200 focus:border-blue-500 focus:ring-blue-500 resize-none"
                   rows={3}
                 />
                 <p className="text-xs text-gray-500">
@@ -265,23 +265,24 @@ const EditBlog = () => {
 
               {/* Featured Image */}
               <div className="space-y-3">
-                <Label htmlFor="featuredImageUrl" className="text-sm font-medium text-gray-700 flex items-center gap-2">
-                  <Image className="w-4 h-4 text-emerald-500" />
+                <Label htmlFor="featuredImageUrl" className="text-xs font-semibold uppercase tracking-wide text-blue-600 flex items-center gap-2">
+                  <Image className="w-4 h-4 text-blue-500" />
                   Featured Image URL
                 </Label>
                 <Input
                   id="featuredImageUrl"
-                  placeholder="https://example.com/image.jpg (optional)"
+                  type="url"
+                  placeholder="https://example.com/blog-image.jpg"
                   value={featuredImageUrl}
                   onChange={(e) => setFeaturedImageUrl(e.target.value)}
-                  className="border-emerald-200 focus:border-emerald-500 focus:ring-emerald-500"
+                  className="border-blue-200 focus:border-blue-500 focus:ring-blue-500"
                 />
                 {featuredImageUrl && (
                   <div className="mt-2">
                     <img 
                       src={featuredImageUrl} 
                       alt="Featured image preview" 
-                      className="w-full h-48 object-cover rounded-lg border border-emerald-200"
+                      className="w-full h-48 object-cover rounded-lg border border-blue-200"
                       onError={(e) => {
                         e.currentTarget.src = "";
                         e.currentTarget.style.display = "none";
@@ -289,16 +290,16 @@ const EditBlog = () => {
                     />
                   </div>
                 )}
-                <p className="text-xs text-gray-500">Optional: Add a featured image for your blog post</p>
+                <p className="text-xs text-gray-600">Optional: Add a featured image for your blog post</p>
               </div>
 
               {/* Content — Summernote */}
               <div className="space-y-3">
-                <Label htmlFor="content" className="text-sm font-medium text-gray-700 flex items-center gap-2">
-                  <FileText className="w-4 h-4 text-emerald-500" />
+                <Label htmlFor="content" className="text-xs font-semibold uppercase tracking-wide text-blue-600 flex items-center gap-2">
+                  <FileText className="w-4 h-4 text-blue-500" />
                   Content
                 </Label>
-                <div className={`border ${isFullscreen ? 'border-transparent' : 'border-emerald-200'} ${isFullscreen ? 'rounded-none' : 'rounded-lg'} overflow-hidden transition-all duration-200`}>
+                <div className={`border ${isFullscreen ? 'border-transparent' : 'border-blue-200'} ${isFullscreen ? 'rounded-none' : 'rounded-lg'} overflow-hidden transition-all duration-200`}>
                   <SummernoteEditor
                     key={blog?.id || 'editor'}
                     value={content}
@@ -322,21 +323,21 @@ const EditBlog = () => {
         {/* Sidebar */}
         <div className="space-y-6">
           {/* Blog Info */}
-          <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-emerald-100/50 p-6 shadow-lg">
-            <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
-              <FileText className="w-5 h-5 text-emerald-500" />
+          <div className="bg-white border border-blue-100 rounded-xl p-6 shadow-sm">
+            <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
+              <FileText className="w-5 h-5 text-blue-500" />
               Blog Information
             </h3>
             <div className="space-y-3 text-sm">
               <div className="flex justify-between items-center">
                 <span className="text-gray-600">Created</span>
-                <span className="text-gray-800">
+                <span className="text-gray-900">
                   {blog?.dateCreated ? new Date(blog.dateCreated).toLocaleDateString() : 'Unknown'}
                 </span>
               </div>
               <div className="flex justify-between items-center">
                 <span className="text-gray-600">Last Updated</span>
-                <span className="text-gray-800">
+                <span className="text-gray-900">
                   {blog?.lastUpdated ? new Date(blog.lastUpdated).toLocaleDateString() : 'Unknown'}
                 </span>
               </div>
@@ -344,7 +345,7 @@ const EditBlog = () => {
                 <span className="text-gray-600">Status</span>
                 <span className={`px-2 py-1 rounded-full text-xs font-medium ${
                   blog?.isPublished 
-                    ? 'bg-emerald-100 text-emerald-700' 
+                    ? 'bg-green-100 text-green-700' 
                     : 'bg-gray-100 text-gray-700'
                 }`}>
                   {blog?.isPublished ? 'Published' : 'Draft'}
@@ -354,48 +355,52 @@ const EditBlog = () => {
           </div>
 
           {/* Edit Tips */}
-          <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-emerald-100/50 p-6 shadow-lg">
-            <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
-              <RefreshCw className="w-5 h-5 text-emerald-500" />
+          <div className="bg-white border border-blue-100 rounded-xl p-6 shadow-sm">
+            <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
+              <RefreshCw className="w-5 h-5 text-blue-500" />
               Editing Tips
             </h3>
             <ul className="space-y-3 text-sm text-gray-600">
               <li className="flex items-start gap-2">
-                <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full mt-2 flex-shrink-0"></div>
+                <div className="w-1.5 h-1.5 bg-blue-500 rounded-full mt-2 flex-shrink-0"></div>
                 <span>Save frequently to avoid losing your changes</span>
               </li>
               <li className="flex items-start gap-2">
-                <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full mt-2 flex-shrink-0"></div>
+                <div className="w-1.5 h-1.5 bg-blue-500 rounded-full mt-2 flex-shrink-0"></div>
                 <span>Use the fullscreen mode for better focus</span>
               </li>
               <li className="flex items-start gap-2">
-                <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full mt-2 flex-shrink-0"></div>
+                <div className="w-1.5 h-1.5 bg-blue-500 rounded-full mt-2 flex-shrink-0"></div>
                 <span>Keep your synopsis under 200 characters</span>
               </li>
               <li className="flex items-start gap-2">
-                <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full mt-2 flex-shrink-0"></div>
+                <div className="w-1.5 h-1.5 bg-blue-500 rounded-full mt-2 flex-shrink-0"></div>
                 <span>Add a featured image to make your blog stand out</span>
               </li>
             </ul>
           </div>
 
           {/* Statistics */}
-          <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-emerald-100/50 p-6 shadow-lg">
-            <h3 className="text-lg font-semibold text-gray-800 mb-4">Blog Statistics</h3>
+          <div className="bg-white border border-blue-100 rounded-xl p-6 shadow-sm">
+            <h3 className="text-lg font-bold text-gray-900 mb-4">Blog Statistics</h3>
             <div className="space-y-3">
               <div className="flex justify-between items-center">
-                <span className="text-sm text-gray-600">Title characters</span>
-                <span className="text-sm font-medium text-emerald-600">{title.length}</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-gray-600">Synopsis characters</span>
-                <span className={`text-sm font-medium ${synopsis.length > 200 ? 'text-red-600' : 'text-emerald-600'}`}>
-                  {synopsis.length}/200
+                <span className="text-gray-600">Word Count</span>
+                <span className="text-gray-900 font-medium">
+                  {content.split(/\s+/).filter(word => word.length > 0).length} words
                 </span>
               </div>
               <div className="flex justify-between items-center">
-                <span className="text-sm text-gray-600">Content words</span>
-                <span className="text-sm font-medium text-emerald-600">{content.split(/\s+/).filter(word => word.length > 0).length}</span>
+                <span className="text-gray-600">Character Count</span>
+                <span className="text-gray-900 font-medium">
+                  {content.length} characters
+                </span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-gray-600">Reading Time</span>
+                <span className="text-gray-900 font-medium">
+                  ~{Math.max(1, Math.ceil(content.split(/\s+/).filter(word => word.length > 0).length / 200))} min
+                </span>
               </div>
             </div>
           </div>
